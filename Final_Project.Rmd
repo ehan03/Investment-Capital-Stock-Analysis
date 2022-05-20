@@ -1,0 +1,359 @@
+---
+title: "S&DS 230 Final Project"
+output:
+  github_document:
+    toc: true
+    toc_depth: 2
+date: '5/6/2022'
+---
+
+## Introduction
+
+For our project, we have decided to use the Investment and Capital Stock (ICSD) data set from the International Monetary Fund. It contains data on investment and capital stock for government, private sector, and public-private partnerships across various countries between the years 1960 and 2013. We chose this data set because we have a shared interest in the financial services industry, and analysis in this dataset can prove to be useful for economists, investors, policy makers, and government officials.
+
+
+## Data
+```{r}
+# Necessary libraries
+library("car")
+source("http://www.reuningscherer.net/s&ds230/Rfuncs/regJDRS.txt")
+```
+
+
+```{r}
+# Load data
+data <- read.csv("Investment and Capital Stock (ICSD)_ICSD_05-08-2016 17-46-32-23_timeSeries.csv")
+data <- data[, c(1, 3, 5, 33:61)]
+
+#Commented out below lines to reduce report length
+# head(data)
+# dim(data)
+# names(data)
+```
+### Categorical Variables: 
+
+Country Name: The name of the county. Cleaned up the name of the first column of country names to nicely format into "Country.Name"
+
+Indicator Name: Indicators come in categories which interpret financial data for each country, yielding quantitative measurements. Throughout the project we grouped these indicators into stocks and investments. Stocks: (Private capital stock, Public-private partnership capital stock, and General government capital stock) and Investments: (General government investment, Private investment, and Public-private partnership investment).
+
+Year (1985 to 2013): Although the years start from 1960 and end in 2013, we will focus on the years from 1985 to 2013 because for Public-private partnerships there is no data for any country until 1985. If we were to omit this data, then all data for Public-private partnerships for all countries would be omitted. Cleaned by starting years from 1985, and by getting rid of the X in XYear (ex. to make X2001 into 2001).
+
+
+### Continuous Variables: 
+These continuous variables do not appear as part of the variable names of the data set, but rather appear as individual data within Indicator Name. 
+
+Capital Stock (Private, Public-private partnership, and General government): The amount of common and preferred shares of a company. In other words, the ownership a company has. 
+
+Investment (General government, Private, Public-private partnership): Acquiring an asset in order to generate income.
+
+Note: Both Capital Stock and Investment TOGETHER do belong in Indicator Name as categories, but INDIVIDUALLY there are both separate groups of continuous variables as they both have quantitative values and can take on unlimited measurements in between highest and lowest points of measurements.
+
+We ran into the issue of having two different units, used inconsistently with capital stocks and investments, so when analyzing data we want the units to be consistent. In future R chunks, we made sure to isolate the continuous variable AND the unit to ensure consistency in our analysis.
+
+
+The two different units are: 
+1) Percent of GDP: GDP stands for Gross domestic product, which measures the market value of goods and services produced. 
+2) PPP, Constant 2005 Dollars: (PPP) stands for purchasing power parity, which essentially compares different the currencies of different countries by looking at the ratios of different price of goods in each country, and we are comparing this to 2005 for consistency. This number essentially gives a universal currency value.
+
+To finish off our cleaning, we removed rows with missing entries. Some of the aforementioned cleaning code is appears in more relevant, future R chunks, such as in the (Private Investments) section. We transposed and resetting indices, because of the horizontal formatting of the years. After speaking with JDRS, We also decided to take a look at only certain years, such as 2013 for stock values, and years that are spaced apart to ensure independence in our time series nature of the data.  
+Important ratio in our analysis:
+Stock Value as Percent of GDP: 
+The stock market capitalization (stock value)-to-GDP ratio helps determine if an overall market is undervalued or overvalued compared to it's historical average. This data table below explains how to evaluate these ratios.
+```{r}
+valueGDP <- data.frame(
+  Valuation_For_Market = c("Undervalued", "Fair Valued", "Overvalued"),
+  StockValueAsPercentofGDP = c("Below 75%", "75% to 90%", "Above 90%")
+)
+valueGDP
+```
+
+
+## Data Cleaning
+```{r}
+# Rename name column
+colnames(data)[1] <- "Country.Name"
+
+#Get rid of the X in XYear
+for (i in 1985:2013) {
+  colnames(data)[which(names(data) == paste0("X", i))] <- as.character(i)
+}
+
+# Remove rows with missing entries
+data <- na.omit(data)
+
+#Commented out below line to reduce report length
+head(data)
+```
+
+
+## Capital Stocks
+```{r}
+capital_stocks <- data[data$Indicator.Name %in% c("General government capital stock", "Private capital stock", "Public-private partnership capital stock") & data$Unit.Name == "Percent of GDP", ]
+
+boxplot(capital_stocks$`2013` ~ capital_stocks$Indicator.Name,
+        main = "International Capital Stock Values as 
+        Percent of GDP in 2013, by Stock Type", 
+        xlab = "Stock type", 
+        ylab = "Stock value (percent of GDP)",
+        col = "yellow", cex.axis = 0.85)
+
+```
+
+*Both the Public-private partnership capital stock and the Private capital stock boxplots in general do not overlap, therefore this suggests a difference between both of these groups. All 3 boxplot medians are different, and the spread of the Public-private partnership capital stock is much smaller than the spread of General government capital stock and Private capital stock. With the exception of outliers, all 3 box plots seem to be symmetric. All 3 boxplots have outliers which may skew the results towards a higher Stock value (in percent of GDP). Countries such as Lebanon skew these results (Stock value is 278% of GDP in 2013 for private capital stock). This percentage is far above 90%, therefore in 2013 Lebanon's overall market is far overvalued compared to it's historical average regarding all private capital stock.*
+
+*We would like to examine if there are differences in the mean percent of GDP between stock types for all international capital stocks in 2013. To do this, we perform an ANOVA test.*
+
+### ANOVA
+```{r}
+sds <- tapply(capital_stocks$`2013`, capital_stocks$Indicator.Name, sd)
+round(max(sds) / min(sds), 1)
+```
+
+*We see that the assumption of equal variances of ANOVA is violated, since the ratio between highest sd and lowest sd is 5.1 > 2. Therefore, a transformation should be applied. The transformation necessary to be applied can be determined using a Box Cox transformation.*
+
+```{r}
+aov1 <- aov(capital_stocks$`2013` ~ capital_stocks$Indicator.Name)
+trans1 <- boxCox(aov1)
+```
+
+```{r}
+trans1$x[which.max(trans1$y)]
+```
+
+*The value of lambda suggests that a cube root transformation should be used (it is suggested that we transform by Y^0.3030303, which is approximately a cube root transformation. Thus, we raise the capital stocks from 2013 to the 1/3 power). Refitting the model with this transformation yields the following:*
+
+```{r}
+aov2 <- aov((capital_stocks$`2013`)^(1/3) ~ capital_stocks$Indicator.Name -1)
+summary(aov2)
+```
+
+*The summary information of our ANOVA model reveals that there is a significant difference between at least two of the capital stock type groups. The p-value for 2013 capital stocks after transformation is 2 x 10^-16, which is far less than 0.05. In order to determine which groups are different, multiple comparison tests need to be used.*
+
+### Tukey test
+
+```{r}
+TukeyHSD(aov2)
+par(mar = c(5, 11, 4, 1))
+```
+
+
+```{r}
+plot(TukeyHSD(aov2), las = 1)
+```
+
+*Performing a Tukey test results in the conclusion that each 2013 stock type is significantly different in the transformed percents of GDP. All of the 95% confidence intervals (check R Markdown for figure) comparing all pairs of means across Private, Public-private partnership, and General government capital stocks don’t include zero. Using alpha = 0.05, and 95% confidence interval, we can reject the null hypothesis that there isn’t a difference between 2013 stock types.*
+
+### Residual Plots
+
+*To check if the ANOVA model assumptions have been met, the residual plots must be checked.*
+
+```{r}
+myResPlots2(aov2)
+```
+
+*The normal quantile plot suggests that the errors are approximately normally distributed, as indicated by the linear trend. The residual plot does not display any signs of heteroskedasticity, though there do appear to be three cases in which the errors exceed +/-3 standard deviations. However, there are no glaringly large errors. The vertical spread appears to be roughly the same. Thus, there is no evidence of lack of fit, and not much evidence for non linear trend.*
+
+```{r}
+sds <- tapply((capital_stocks$`2013`)^(1/3), capital_stocks$Indicator.Name, sd)
+round(max(sds) / min(sds), 1)
+```
+
+*We can see that the transformation drastically improved the ratio of standard deviations, as it is now much lower than 2.*
+
+
+
+## Private Investments - United States and China
+
+Next, we decided to examine the monetary value of private investments over time between the United States and China. We extracted a subset of data and did some additional cleaning, including transposition and resetting indices, because of the horizontal formatting of the years, which is not ideal for time series data.
+
+```{r}
+investments <- data[data$Country.Name %in% c("China", "United States") & data$Indicator.Name == "Private investment" & data$Unit.Name == "PPP, Constant 2005 Dollars", ]
+investments <- t(investments)
+investments <- investments[4:32, ]
+investments <- cbind(year = rownames(investments), investments)
+investments <- as.data.frame(investments)
+rownames(investments) <- NULL
+colnames(investments) <- c("year", "United States", "China")
+investments$year <- as.numeric(investments$year)
+investments$`United States` <- as.numeric(investments$`United States`)
+investments$China <- as.numeric(investments$China)
+```
+
+
+```{r}
+plot(investments$year, investments$`United States`, pch = 16,
+     col = 1, ylim = c(0, 3000000000000),
+     main = "Value of Private Investments for the United States vs. 
+     China 1985-2013, in Constant 2005 Dollars", xlab = "Year", ylab = "Value of investments (constant 2005 dollars)")
+points(investments$year, investments$China, pch = 16, col = 2)
+legend("topleft", c("United States", "China"), pch = 16, 
+       col = c(1, 2))
+```
+
+*Overall, for both U.S and China individually, as the year increases, there is an increase in the value of investments (measured in constant 2005 dollars). This makes sense, as the U.S. and China are both highly developed countries and improve technologically throughout the years. It is important to note that at around 2008 and 2009, the Value of investments in China surpasses the value of investments in the United States. This is due to numerous reasons, but some prominent reasons include the fact that the US went through the 2008 Financial Crisis (due primarily to deregulation in the financial industry) and the increased US dependence on supplies and credit from China.*
+
+### Correlation and Regression
+
+*We would like to model China's private investments in 2005 dollars as a function of time, specifically with the value of the investments on the log scale due to the exponential-like growth. To do this, we calculate the correlation and fit a regression line.*
+
+```{r}
+cor1 <- cor(investments$year, log(investments$China))
+cor.test(investments$year, log(investments$China))
+
+lm1 <- lm(log(investments$China) ~ investments$year)
+summary(lm1)
+```
+
+
+```{r}
+plot(investments$year, log(investments$China), 
+     main = "China's Log Value of Private Investment 1985-2013, 
+     in Constant 2005 Dollars", xlab = "Year",
+     ylab = "Log value", pch = 16, col = 2)
+mtext(paste0("Correlation = ", round(cor1, 2), " , Slope = ", round(lm1$coef[2], 2)))
+abline(lm1$coef, col = "blue", lwd = 3)
+```
+*According to our Pearson's product-moment correlation, There is a very strong positive correlation between China's private investments in 2005 dollars (log scale) as a function of time: 0.9908684. The p-value < 2.2e-16, which is far less than alpha = 0.05. Thus it is unlikely that our results happened by chance. This makes sense due to China's increasing global investments and growing economy and China's open door economic policy. This is reflected in the graph: as the years increase, China's log value in of private investment increases as well. Our slope coefficient is 0.18 and the p-value is <2e-16, far less than 0.05. In other words, the log value of China's private investment increases by 0.18 every single year on average from 1985 to 2013.*
+
+### Bootstrap
+
+*We will now bootstrap this data to get a bootstrapped confidence interval for the correlation.*
+
+```{r}
+set.seed(240)
+
+temp <- investments["year"]
+temp$logChina <- log(investments$China)
+
+N <- nrow(temp)
+
+n_samp <- 5000
+
+corResults <- rep(NA, n_samp)
+
+for(i in 1:n_samp){
+  s <- sample(1:N, N , replace = T)
+  fakeData <-  temp[s, ]
+
+  corResults[i] <- cor(fakeData[, 1], fakeData[, 2])
+}
+
+ci_r <- quantile(corResults, c(.025, .975))
+
+hist(corResults, col = "blue", main = "Bootstrapped Correlations", xlab = "Sample Correlation", breaks = 50)
+
+abline(v = ci_r, lwd = 3, col = "red")
+abline(v = cor.test(temp$year, temp$logChina)$conf.int, lwd = 3, col = "green", lty = 2)
+legend("topleft", c("Theoretical CI","Boot CI"), lwd = 3, col = c("green","red"), lty = c(2, 1))
+```
+
+*It appears that the bootstrapped confidence interval gives us a narrower range than the theoretical confidence interval, and the upper bound of the bootstrapped interval is slightly higher than the upper bound of the theoretical confidence interval. From both theoretical and bootstrapped 95% confidence intervals, our correlation values are above 0.98, thus with 95% confidence we can conclude that there is a strong positive correlation value between China's private investments in 2005 dollars (log scale) and time.*
+
+
+## General Government Capital Stocks - Turkey and Venezuela
+
+*We will next compare the mean values of general government capital stock in constant 2005 dollars between Turkey and Venezuela.*
+
+```{r}
+govstocks <- data[data$Country.Name %in% c("Turkey", "Venezuela") & data$Indicator.Name == "General government capital stock" & data$Unit.Name == "PPP, Constant 2005 Dollars", ]
+
+temp_turkey <- as.data.frame(t(govstocks[govstocks$Country.Name == "Turkey", 4:32]))
+temp_turkey$Country.Name <- rep("Turkey", nrow(temp_turkey))
+colnames(temp_turkey)[1] <- "Value"
+
+temp_venezuela <- as.data.frame(t(govstocks[govstocks$Country.Name == "Venezuela", 4:32]))
+temp_venezuela$Country.Name <- rep("Venezuela", nrow(temp_venezuela))
+colnames(temp_venezuela)[1] <- "Value"
+
+govstocks <- rbind(temp_turkey, temp_venezuela)
+
+boxplot(govstocks$Value ~ govstocks$Country.Name,
+        main = "Boxplot of General Government Stock Values for Turkey 
+        and Venezuela 1985-2013, in Constant 2005 Dollars", 
+        xlab = "Country", 
+        ylab = "Stock value (constant 2005 dollars)", 
+        col = "red")
+```
+
+*The box plot for Turkey's general government capital stock value has a larger spread than Venezuela's general government capital stock value, but both countries' median stock value are roughly similar (around 3.6 x 10^ 11). Venezuela's government stock value has some high stock value outliers and a possible right skew (towards higher stock value).*
+
+```{r}
+hist(govstocks$Value[govstocks$Country.Name == "Turkey"], col = "orange", main = "Histogram of Government Stock Values in 
+     Turkey 1985-2013", xlab = "Stock value (constant 2005 dollars)")
+hist(govstocks$Value[govstocks$Country.Name == "Venezuela"], col = "blue", main = "Histogram of Government Stock Values in 
+     Venezuela 1985-2013", xlab = "Stock value (constant 2005 dollars)")
+```
+
+*The histogram for government stock values in Turkey from 1985-2013 appears to be symmetric. We can confirm Venezuela's government stock value (in constant 2005 dollars) right skew from 1985-2013 with this histogram. This could be explained by the fact due to increased inflation in the Venezuelan Bolivar and/or political crisis and misrepresentation of stocks around 2010, which could be producing these outlying stock values, which PPP (see definition in variables) may fail to account for due to lack of regulation in price of goods.*
+
+### T-test
+
+```{r}
+t.test(govstocks$Value ~ govstocks$Country.Name)
+```
+
+*The p-value = 0.05829, is greater than alpha = 0.05. Therefore, we fail to reject null hypothesis, and thus there is no evidence for true difference in means between Venezuela's government stock value and Turkey's government stock value from 1985-2013*
+
+### Permutation Test
+
+```{r}
+actualdiff <- by(govstocks$Value, govstocks$Country.Name, mean)
+actualdiff <- actualdiff[1] - actualdiff[2]
+
+N <- 10000
+diffvals <- rep(NA, N)
+for (i in 1:N) {
+  fakename <- sample(govstocks$Country.Name)
+  diffvals[i] <- mean(govstocks$Value[fakename == "Turkey"]) - mean(govstocks$Value[fakename == "Venezuela"])
+}
+
+hist(diffvals, col = "yellow", main = "Permuted Sample Means Diff in Government Stock Values", xlab = "Constant 2005 Dollars", breaks = 50)
+abline(v = actualdiff, col = "blue", lwd = 3)
+text(actualdiff - 2000000000, 310, paste("Actual Diff in Means =", round(actualdiff, 2)), srt = 90)
+```
+
+```{r}
+mean(abs(diffvals) >= abs(actualdiff))
+```
+
+*Our p-value for mean differences between Venezuela's government stock value and Turkey's government stock value from 1985-2013 is 0.0596. This is greater than alpha = 0.05, thus at the 95% confidence level, we fail to reject the null hypothesis (that there is no difference in mean between Venezuela's government stock value and Turkey's government stock value). The actual diff in means is about -23,968,896,551, and the permuted histogram appears to be symmetric, centered at around 0 Constant 2005 dollars.*
+
+## Capital Stocks - Multiple Regression
+
+Our plan for multiple regression is to develop the best model for 2013 capital stocks (General government capital stock, Private capital stock, and Public-private partnership capital stock) to see which variables (capital stocks from years from 1985 to 2012), are statistically significant predictors of 2013 capital stocks. We will fit a model then will perform backwards stepwise regression to eliminate variables that are not significant at the 5% level from the regression model to eventually find a simplified model, which can better explain data.
+```{r}
+capital_stocks <- subset(capital_stocks, select = -c(Unit.Name))
+glm <- lm(`2013` ~ ., data = capital_stocks)
+```
+
+
+```{r}
+Anova(glm, type = 3)
+```
+
+We now perform backwards stepwise regression, and let's keep the statistically significant predictors (1993, 1998, and 2007 were found to be insignificant after the first step of removing predictors).
+
+```{r}
+glm <- lm(`2013` ~ Country.Name + `1995` + `1996` + `1999` + `2002` + `2003` + `2011` + `2012`, data = capital_stocks)
+
+Anova(glm, type = 3)
+```
+
+
+```{r}
+summary(glm)
+```
+*(Check R Markdown for the results of the final model when calling summary(). We decided to not display the summary information, as the output is about 6 pages in length due to the high number of individual levels of Country.Name) In addition to the aforementioned years, the other coefficients that are statistically significant (alpha = 0.05) are Central African Republic (significant positive coefficient of 31.72002), Guinea (positive coefficient of 6.83414), Mauritania (positive coefficient of 6.40368), Paraguay (strong negative coefficient of -8.15790), St. Kitts and Nevis (negative coefficient of -7.17588). In other words, being in Central African Republic, Guinea, and Mauritania increases 2013 capital stock value and being in Paraguay and St. Kitts and Nevis decreases 2013 capital stock value. The years 1995, 1999, 2002, and 2011 have negative coefficients, while 1996, 2003, and 2012 have positive coefficients. The most significant positive coefficient for years is 2012 (1.81176). Our final model results appear to be strong. The Adjusted R-squared is 0.9961, which means that 99.61% of the variations in our response variables can be explained by the variance in our indicators. We decided to not transform the country name as it is a categorical variable. Furthermore, transforming only some of the years would not make any sense.*
+
+```{r}
+myResPlots2(glm)
+```
+
+*When examining the Normal Quantile plot, without considering extreme country capital stock values that appear at the tails, our NQ plot of Studentized residuals does suggest a normal distribution, as our points mostly fall within the line and are within the blue bands, which is an assumption of our linear model to be normally distributed. When considering the extreme values at the tails, this plot does not suggest a normal distribution as many points do not follow the line. When looking at the the Fits vs. Studentized Residuals plot, for the most part, the vertical spread does appear to be roughly even, thus, there is not much evidence of Heteroscedasticity, nor is there much evidence for non linear trends. There are, however, a couple of extreme outliers. The nature of our data is vast as we are considering capital stock values throughout all countries of the world. Given the major socioeconomic disparities globally, of course there will be outliers that skew our data in both higher and lower ends.*
+
+
+## Conclusions and Summary
+
+*This data was tricky to analyze due to 1) the difficultly in isolating our continuous variable 2) the time series nature of the data. We thought of using JDRS' World Bank Data at first, but we wanted the chance to apply our course knowledge to something significantly different than the data sets discussed in class. We also added additional analysis, such as NQ plot for bootstrapped slopes, and an extra ratio of standard deviations comparison after our transformation Y^1/3 to confirm our assumption of equal variances of ANOVA.*
+*We first created a box plot of capital stocks in 2013, then conducted an ANOVA test to test our assumption of equal variances, conducted a Box Cox transformation that yielded a suggested transformation of Y^1/3, conducted a Tukey test to determine each 2013 stock type is significantly different in the transformed percents of GDP, and checked the residual plots and determined that ANOVA model assumptions have been met. Next, we decided to examine the monetary value of private investments over time between the United States and China, so we looked at the scatter plots to see positive trend for both countries, then conducted a Pearson's product-moment correlation to find a very strong positive correlation between China's private investments and time, and bootstrapped correlations and slopes. Afterwards, we compared the mean values of general government capital stock in between Turkey and Venezuela using a boxplot and histogram, conducted a t-test and found  no evidence for true difference in means between Venezuela and Turkey government stock value, and conducted a permutation test which also led us to fail to reject null hypothesis. Finally, we conducted multiple regression analysis to develop the best model for 2013 capital stocks and found significant predictors such as 2012 and the Central African Republic.*             
+*It is clear that the data supports overall macroeconomic trends on investment and capital stock for government, private sector, and public-private partnerships across various countries between the years 1985 and 2013. Visualizing the data and breaking down the data helps yield global trends, such as the the overvaluation in 2013 of Lebanon's overall market compared to it's historical average regarding all private capital stock, or the 2008 US Financial crisis. Lebanon's overvaluation can be potentially explained by the fact that in 2013, stabilization in inflation led to overvaluation in exchange rates. (Source: Yale School of Management https://som.yale.edu/blog/part-ii-of-crisis-in-lebanon-buildup-of-interrelated-challenges) Our data also aligns with China's open economic policy, and possible inflation of the Venezuelan Bolivar. Knowing about market valuation, inflation, and economic policies can help economists, investors, policy makers, and government officials. Essentially, conducting this final project helps quantitatively ground macroeconomic trends across the World.*
