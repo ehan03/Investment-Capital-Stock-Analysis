@@ -4,12 +4,21 @@ S&DS 230 Final Project
 
 -   [Introduction](#introduction)
 -   [Data](#data)
+    -   [Categorical Variables](#categorical-variables)
+    -   [Continuous Variables](#continuous-variables)
 -   [Data Cleaning](#data-cleaning)
 -   [Capital Stocks](#capital-stocks)
+    -   [ANOVA](#anova)
+    -   [Tukey test](#tukey-test)
+    -   [Residual Plots](#residual-plots)
 -   [Private Investments - United States and
     China](#private-investments---united-states-and-china)
+    -   [Correlation and Regression](#correlation-and-regression)
+    -   [Bootstrap](#bootstrap)
 -   [General Government Capital Stocks - Turkey and
     Venezuela](#general-government-capital-stocks---turkey-and-venezuela)
+    -   [T-test](#t-test)
+    -   [Permutation Test](#permutation-test)
 -   [Capital Stocks - Multiple
     Regression](#capital-stocks---multiple-regression)
 -   [Conclusions and Summary](#conclusions-and-summary)
@@ -128,7 +137,7 @@ names(data)
     ## [25] "X2006"           "X2007"           "X2008"           "X2009"          
     ## [29] "X2010"           "X2011"           "X2012"           "X2013"
 
-### Categorical Variables:
+### Categorical Variables
 
 Country Name: The name of the county. Cleaned up the name of the first
 column of country names to nicely format into “Country.Name”
@@ -148,7 +157,7 @@ omit this data, then all data for Public-private partnerships for all
 countries would be omitted. Cleaned by starting years from 1985, and by
 getting rid of the X in XYear (ex. to make X2001 into 2001).
 
-### Continuous Variables:
+### Continuous Variables
 
 These continuous variables do not appear as part of the variable names
 of the data set, but rather appear as individual data within Indicator
@@ -380,11 +389,9 @@ TukeyHSD(aov2)
     ## Public-private partnership capital stock-Private capital stock                0
 
 ``` r
-par(mar = c(5, 28, 4, 1))
-plot(TukeyHSD(aov2), las = 1)
+# par(mar = c(5, 28, 4, 1))
+# plot(TukeyHSD(aov2), las = 1)
 ```
-
-![](Final_Project_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 *Performing a Tukey test results in the conclusion that each 2013 stock
 type is significantly different in the transformed percents of GDP. All
@@ -1093,26 +1100,23 @@ summary(glm)
     ## Multiple R-squared:  0.9976, Adjusted R-squared:  0.9961 
     ## F-statistic: 636.3 on 143 and 216 DF,  p-value: < 2.2e-16
 
-*(Check R Markdown for the results of the final model when calling
-summary(). We decided to not display the summary information, as the
-output is about 6 pages in length due to the high number of individual
-levels of Country.Name) In addition to the aforementioned years, the
-other coefficients that are statistically significant (alpha = 0.05) are
-Central African Republic (significant positive coefficient of 31.72002),
-Guinea (positive coefficient of 6.83414), Mauritania (positive
-coefficient of 6.40368), Paraguay (strong negative coefficient of
--8.15790), St. Kitts and Nevis (negative coefficient of -7.17588). In
-other words, being in Central African Republic, Guinea, and Mauritania
-increases 2013 capital stock value and being in Paraguay and St. Kitts
-and Nevis decreases 2013 capital stock value. The years 1995, 1999,
-2002, and 2011 have negative coefficients, while 1996, 2003, and 2012
-have positive coefficients. The most significant positive coefficient
-for years is 2012 (1.81176). Our final model results appear to be
-strong. The Adjusted R-squared is 0.9961, which means that 99.61% of the
-variations in our response variables can be explained by the variance in
-our indicators. We decided to not transform the country name as it is a
-categorical variable. Furthermore, transforming only some of the years
-would not make any sense.*
+*In addition to the aforementioned years, the other coefficients that
+are statistically significant (alpha = 0.05) are Central African
+Republic (significant positive coefficient of 31.72002), Guinea
+(positive coefficient of 6.83414), Mauritania (positive coefficient of
+6.40368), Paraguay (strong negative coefficient of -8.15790), St. Kitts
+and Nevis (negative coefficient of -7.17588). In other words, being in
+Central African Republic, Guinea, and Mauritania increases 2013 capital
+stock value and being in Paraguay and St. Kitts and Nevis decreases 2013
+capital stock value. The years 1995, 1999, 2002, and 2011 have negative
+coefficients, while 1996, 2003, and 2012 have positive coefficients. The
+most significant positive coefficient for years is 2012 (1.81176). Our
+final model results appear to be strong. The Adjusted R-squared is
+0.9961, which means that 99.61% of the variations in our response
+variables can be explained by the variance in our indicators. We decided
+to not transform the country name as it is a categorical variable.
+Furthermore, transforming only some of the years would not make any
+sense.*
 
 ``` r
 myResPlots2(glm)

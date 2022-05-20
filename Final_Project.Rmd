@@ -3,9 +3,9 @@ title: "S&DS 230 Final Project"
 output:
   github_document:
     toc: true
-    toc_depth: 2
-    fig_width: 15
-    fig_height: 10
+    toc_depth: 3
+    fig_width: 12
+    fig_height: 8
 date: '5/6/2022'
 ---
 
@@ -31,7 +31,7 @@ head(data)
 dim(data)
 names(data)
 ```
-### Categorical Variables: 
+### Categorical Variables
 
 Country Name: The name of the county. Cleaned up the name of the first column of country names to nicely format into "Country.Name"
 
@@ -40,7 +40,7 @@ Indicator Name: Indicators come in categories which interpret financial data for
 Year (1985 to 2013): Although the years start from 1960 and end in 2013, we will focus on the years from 1985 to 2013 because for Public-private partnerships there is no data for any country until 1985. If we were to omit this data, then all data for Public-private partnerships for all countries would be omitted. Cleaned by starting years from 1985, and by getting rid of the X in XYear (ex. to make X2001 into 2001).
 
 
-### Continuous Variables: 
+### Continuous Variables
 These continuous variables do not appear as part of the variable names of the data set, but rather appear as individual data within Indicator Name. 
 
 Capital Stock (Private, Public-private partnership, and General government): The amount of common and preferred shares of a company. In other words, the ownership a company has. 
@@ -138,8 +138,8 @@ TukeyHSD(aov2)
 
 
 ```{r}
-par(mar = c(5, 28, 4, 1))
-plot(TukeyHSD(aov2), las = 1)
+# par(mar = c(5, 28, 4, 1))
+# plot(TukeyHSD(aov2), las = 1)
 ```
 
 *Performing a Tukey test results in the conclusion that each 2013 stock type is significantly different in the transformed percents of GDP. All of the 95% confidence intervals (check R Markdown for figure) comparing all pairs of means across Private, Public-private partnership, and General government capital stocks don’t include zero. Using alpha = 0.05, and 95% confidence interval, we can reject the null hypothesis that there isn’t a difference between 2013 stock types.*
@@ -344,7 +344,7 @@ Anova(glm, type = 3)
 ```{r}
 summary(glm)
 ```
-*(Check R Markdown for the results of the final model when calling summary(). We decided to not display the summary information, as the output is about 6 pages in length due to the high number of individual levels of Country.Name) In addition to the aforementioned years, the other coefficients that are statistically significant (alpha = 0.05) are Central African Republic (significant positive coefficient of 31.72002), Guinea (positive coefficient of 6.83414), Mauritania (positive coefficient of 6.40368), Paraguay (strong negative coefficient of -8.15790), St. Kitts and Nevis (negative coefficient of -7.17588). In other words, being in Central African Republic, Guinea, and Mauritania increases 2013 capital stock value and being in Paraguay and St. Kitts and Nevis decreases 2013 capital stock value. The years 1995, 1999, 2002, and 2011 have negative coefficients, while 1996, 2003, and 2012 have positive coefficients. The most significant positive coefficient for years is 2012 (1.81176). Our final model results appear to be strong. The Adjusted R-squared is 0.9961, which means that 99.61% of the variations in our response variables can be explained by the variance in our indicators. We decided to not transform the country name as it is a categorical variable. Furthermore, transforming only some of the years would not make any sense.*
+*In addition to the aforementioned years, the other coefficients that are statistically significant (alpha = 0.05) are Central African Republic (significant positive coefficient of 31.72002), Guinea (positive coefficient of 6.83414), Mauritania (positive coefficient of 6.40368), Paraguay (strong negative coefficient of -8.15790), St. Kitts and Nevis (negative coefficient of -7.17588). In other words, being in Central African Republic, Guinea, and Mauritania increases 2013 capital stock value and being in Paraguay and St. Kitts and Nevis decreases 2013 capital stock value. The years 1995, 1999, 2002, and 2011 have negative coefficients, while 1996, 2003, and 2012 have positive coefficients. The most significant positive coefficient for years is 2012 (1.81176). Our final model results appear to be strong. The Adjusted R-squared is 0.9961, which means that 99.61% of the variations in our response variables can be explained by the variance in our indicators. We decided to not transform the country name as it is a categorical variable. Furthermore, transforming only some of the years would not make any sense.*
 
 ```{r}
 myResPlots2(glm)
