@@ -139,11 +139,11 @@ TukeyHSD(aov2)
 
 
 ```{r}
-# par(mar = c(5, 28, 4, 1))
-# plot(TukeyHSD(aov2), las = 1)
+par(mar = c(5, 28, 4, 1))
+plot(TukeyHSD(aov2), las = 1)
 ```
 
-*Performing a Tukey test results in the conclusion that each 2013 stock type is significantly different in the transformed percents of GDP. All of the 95% confidence intervals (check R Markdown for figure) comparing all pairs of means across Private, Public-private partnership, and General government capital stocks don’t include zero. Using alpha = 0.05, and 95% confidence interval, we can reject the null hypothesis that there isn’t a difference between 2013 stock types.*
+*Performing a Tukey test results in the conclusion that each 2013 stock type is significantly different in the transformed percents of GDP. All of the 95% confidence intervals comparing all pairs of means across Private, Public-private partnership, and General government capital stocks don’t include zero. Using alpha = 0.05, and 95% confidence interval, we can reject the null hypothesis that there isn’t a difference between 2013 stock types.*
 
 ### Residual Plots
 
